@@ -1,34 +1,29 @@
 @echo off
 setlocal EnableExtensions
 
+rem Autostart confiavel: gera launcher com caminho absoluto do pythonw.
 set "DIR=%~dp0"
-set "VBS=%DIR%udp_audio_start.vbs"
-set "LNK=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Moonlight MLMC UDP Audio.lnk"
+set "PS1=%DIR%install-autostart.ps1"
 
-if not exist "%VBS%" (
-    echo ERRO: udp_audio_start.vbs nao encontrado em %DIR%
+if not exist "%PS1%" (
+    echo ERRO: install-autostart.ps1 nao encontrado.
     pause
     exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$s = (New-Object -ComObject WScript.Shell).CreateShortcut('%LNK%');" ^
-  "$s.TargetPath = 'wscript.exe';" ^
-  "$s.Arguments = '//B \"\"%VBS%\"\"';" ^
-  "$s.WorkingDirectory = '%DIR%';" ^
-  "$s.Description = 'Moonlight MLMC UDP microphone receiver (port 9000)';" ^
-  "$s.Save()"
-
+where python >nul 2>&1
 if errorlevel 1 (
-    echo Falha ao criar atalho de inicializacao.
+    echo ERRO: Python nao encontrado no PATH. Rode install-deps.bat primeiro.
     pause
     exit /b 1
 )
 
-echo Atalho criado:
-echo   %LNK%
-echo.
-echo O receptor iniciara automaticamente no proximo login (sem janela).
-echo Logs: %DIR%udp_audio_server.log
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%"
+if errorlevel 1 (
+    echo Falha ao configurar autostart.
+    pause
+    exit /b 1
+)
+
 pause
 exit /b 0

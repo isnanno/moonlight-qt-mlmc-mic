@@ -36,7 +36,10 @@ Modificação do cliente Moonlight por **Nanno** · [moonlight-qt-mlmc-mic](http
 
 5. Teste com **`udp_audio_start.bat`** (janela visível, log em `udp_audio_server.log`)
 
-6. Para iniciar com o Windows: **`install-autostart.bat`**
+6. Para iniciar com o Windows: **`install-autostart.bat`**  
+   (gera `udp_audio_autostart.vbs` com caminho absoluto do Python — necessário porque o PATH ainda não está completo no boot)
+
+7. Se não subir no boot, veja **`autostart_boot.log`**
 
 ---
 

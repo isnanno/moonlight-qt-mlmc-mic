@@ -19,6 +19,7 @@ $helperFiles = @(
     "install-deps.bat",
     "list-devices.bat",
     "install-autostart.bat",
+    "install-autostart.ps1",
     "uninstall-autostart.bat",
     "README.md"
 )
