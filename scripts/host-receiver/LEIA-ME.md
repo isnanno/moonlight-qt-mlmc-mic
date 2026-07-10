@@ -18,7 +18,9 @@ https://www.python.org/downloads/
 1. Baixe e extraia o ZIP **host-receiver** do [release](https://github.com/isnanno/moonlight-qt-mlmc-mic/releases)
 2. Dê duplo clique em **`INSTALAR.bat`**
 
-Pronto. O assistente instala dependências, detecta o VB-Cable (ou similar), configura o boot automático e salva tudo em `config.ini`.
+Pronto. O assistente instala dependências, detecta o VB-Cable (ou similar), salva `config.ini` e cria uma **tarefa no Agendador de Tarefas** (inicia 10 s após o login).
+
+> A pasta **Inicializar** não executa `.vbs` no boot — o autostart usa o Agendador de Tarefas.
 
 ---
 
@@ -53,7 +55,7 @@ Libere **entrada UDP na porta 9000** nesta máquina (VM/host).
 
 | Sintoma | O que verificar |
 |---------|-----------------|
-| Não inicia no boot | `autostart_boot.log` |
+| Não inicia no boot | `autostart_boot.log` + Agendador de Tarefas → tarefa **Moonlight MLMC UDP Audio** |
 | Não recebe áudio | `udp_audio_server.log` + firewall UDP 9000 |
 | Áudio no dispositivo errado | Rode `INSTALAR.bat` de novo e escolha outro índice |
 | Python não encontrado | Reinstale Python marcando **Add to PATH** |
@@ -63,5 +65,5 @@ Libere **entrada UDP na porta 9000** nesta máquina (VM/host).
 ## Logs
 
 - `udp_audio_server.log` — servidor de áudio
-- `autostart_boot.log` — inicialização com o Windows
+- `autostart_boot.log` — inicialização com o Windows (tarefa agendada)
 - `config.ini` — dispositivo de saída escolhido (gerado pelo instalador)

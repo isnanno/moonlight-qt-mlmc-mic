@@ -138,7 +138,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "  Instalacao concluida!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "O receptor vai iniciar sozinho no proximo login do Windows."
+Write-Host "O receptor vai iniciar sozinho ~10 segundos apos o login (Agendador de Tarefas)."
 Write-Host ""
 Write-Host "  Testar agora (opcional) : INICIAR.bat"
 Write-Host "  Remover do boot         : REMOVER-AUTOSTART.bat"

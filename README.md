@@ -146,7 +146,7 @@ Zippe a pasta **`build\deploy-x64-release`** inteira para usar em outro PC.
 | 2 | Extrair o ZIP na VM |
 | 3 | Duplo clique em **`INSTALAR.bat`** |
 
-O instalador detecta VB-Cable (ou similar), grava `config.ini` e configura o boot automático.
+O instalador detecta VB-Cable (ou similar), grava `config.ini` e registra uma **tarefa agendada** no Windows (10 s após o login).
 
 | Arquivo | Função |
 |---------|--------|
