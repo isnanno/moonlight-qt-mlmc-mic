@@ -1,0 +1,22 @@
+*pro.user
+
+**/.vs/
+build/
+
+# Dependências grandes (baixar com scripts/fetch-deps.ps1)
+/libs/
+/moonlight-common-c/mc-c-pinned/
+/moonlight-common-c/moonlight-common-c/
+/moonlight-common-c/moonlight-common-c-old/
+/qmdnsengine/qmdnsengine/
+/soundio/libsoundio/
+/h264bitstream/h264bitstream/
+/app/SDL_GameControllerDB/
+
+# Logs do receptor UDP
+scripts/udp_audio_server.log
+scripts/__pycache__/
+aqtinstall.log
+
+config.tests/*/.qmake.stash
+config.tests/*/Makefile

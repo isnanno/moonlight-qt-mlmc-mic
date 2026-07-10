@@ -1,0 +1,5 @@
+# Dependências do receptor UDP (scripts/udp_audio_server.py)
+# Instalar: pip install -r scripts/requirements-udp-audio.txt
+
+sounddevice>=0.4.6
+numpy>=1.24.0
