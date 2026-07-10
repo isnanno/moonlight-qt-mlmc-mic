@@ -8,6 +8,25 @@ Base upstream: Moonlight Qt **6.1.0**.
 
 ---
 
+## Como usar (rápido)
+
+### PC cliente — Moonlight com microfone
+
+1. Baixe **[Moonlight portátil](https://github.com/isnanno/moonlight-qt-mlmc-mic/releases)** (ZIP `win64-portable`)
+2. Extraia e execute `Moonlight.exe`
+3. **Settings → Audio** → ative **microfone UDP (porta 9000)**
+4. Conecte e inicie o stream
+
+### VM / host — receptor do microfone
+
+1. Instale [Python 3.10+](https://www.python.org/downloads/) com **Add to PATH**
+2. Baixe o ZIP **[host-receiver](https://github.com/isnanno/moonlight-qt-mlmc-mic/releases)** na VM
+3. Execute **`INSTALAR.bat`** — pronto (boot automático incluso)
+
+Libere **UDP 9000** no firewall da VM. Detalhes em [`scripts/host-receiver/LEIA-ME.md`](scripts/host-receiver/LEIA-ME.md).
+
+---
+
 ## Visão geral
 
 ```mermaid
@@ -65,7 +84,9 @@ Implementação de referência no cliente:
 
 ## Cliente Moonlight (Windows)
 
-### Pré-requisitos
+> **Usuário final:** use o ZIP do [release](https://github.com/isnanno/moonlight-qt-mlmc-mic/releases). A compilação abaixo é só para desenvolvedores.
+
+### Pré-requisitos (compilar do código)
 
 - Windows 10/11
 - [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/) com **Desktop development with C++**
@@ -112,53 +133,34 @@ Zippe a pasta **`build\deploy-x64-release`** inteira para usar em outro PC.
 
 ---
 
-## Receptor na VM / host (`scripts/`)
+## Receptor na VM / host
 
-Arquivos para rodar na máquina que **recebe** o microfone (VM Windows com Sunshine, por exemplo):
+> Baixe o ZIP **host-receiver** no [release](https://github.com/isnanno/moonlight-qt-mlmc-mic/releases).  
+> Documentação completa: [`scripts/host-receiver/LEIA-ME.md`](scripts/host-receiver/LEIA-ME.md)
+
+### Uso (plug and play)
+
+| Passo | Ação |
+|-------|------|
+| 1 | Instalar Python 3.10+ com **Add to PATH** |
+| 2 | Extrair o ZIP na VM |
+| 3 | Duplo clique em **`INSTALAR.bat`** |
+
+O instalador detecta VB-Cable (ou similar), grava `config.ini` e configura o boot automático.
 
 | Arquivo | Função |
 |---------|--------|
-| `scripts/udp_audio_server.py` | Receptor MLMC → reprodução via `sounddevice` |
-| `scripts/requirements-udp-audio.txt` | Dependências Python |
-| `scripts/udp_audio_start.bat` | Inicia com console + log (`udp_audio_server.log`) |
-| `scripts/udp_audio_start.vbs` | Inicia em segundo plano (`pythonw`, sem janela) |
-
-### Instalação Python (VM)
-
-```cmd
-pip install -r scripts\requirements-udp-audio.txt
-```
-
-### Listar dispositivos de saída (VB-Cable, etc.)
-
-```cmd
-python scripts\udp_audio_server.py --list-devices
-```
-
-Anote o **índice** do dispositivo desejado e ajuste em `udp_audio_start.bat` / `udp_audio_start.vbs` (variável `DEVICE` / `deviceIndex`, padrão `16`).
-
-### Execução manual
-
-```cmd
-cd scripts
-python udp_audio_server.py --host 0.0.0.0 --port 9000 --device 16 --priming-ms 50
-```
-
-### Boot automático na VM (sem janela)
-
-1. Copie a pasta `scripts/` para a VM (ex.: `C:\MoonlightUDP\`)
-2. Ajuste o índice do dispositivo em `udp_audio_start.vbs`
-3. Crie um atalho para `udp_audio_start.vbs` em:
-   ```
-   %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
-   ```
-4. Logs em `scripts\udp_audio_server.log`
-
-Para testar com janela visível, use `udp_audio_start.bat`.
+| `INSTALAR.bat` | Instalação completa (rode uma vez) |
+| `INICIAR.bat` | Teste manual com log na tela |
+| `REMOVER-AUTOSTART.bat` | Remove do boot do Windows |
 
 ### Firewall
 
 Libere **UDP entrada na porta 9000** na VM/host.
+
+### Desenvolvimento
+
+Os scripts legados (`udp_audio_start.bat`, `install-deps.bat`, etc.) permanecem em `scripts/` para referência. O pacote de release usa apenas os arquivos simplificados acima.
 
 ---
 
@@ -179,8 +181,9 @@ app/streaming/session.cpp                           # Inicialização RAII na se
 app/settings/streamingpreferences.{h,cpp}           # Preferência persistente
 app/gui/SettingsView.qml                            # Toggle na UI
 app/app.pro                                         # Entradas de build
-scripts/udp_audio_server.py                         # Receptor Python
-scripts/udp_audio_start.{bat,vbs}                   # Autostart Windows
+scripts/host-receiver/INSTALAR.bat              # Instalador plug-and-play (release)
+scripts/host-receiver/LEIA-ME.md                # Guia do receptor
+scripts/udp_audio_server.py                     # Receptor Python
 scripts/requirements-udp-audio.txt
 scripts/fetch-deps.ps1
 scripts/build-release-local.bat

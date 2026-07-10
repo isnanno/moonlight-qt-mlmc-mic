@@ -10,8 +10,19 @@ $Dir = if ($PSScriptRoot -match 'host-receiver$') {
 $ServerPy = Join-Path $Dir 'udp_audio_server.py'
 $LauncherVbs = Join-Path $Dir 'udp_audio_autostart.vbs'
 $ShortcutPath = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\Moonlight MLMC UDP Audio.lnk'
+$ConfigPath = Join-Path $Dir 'config.ini'
 $Device = 16
 $Port = 9000
+
+if (Test-Path $ConfigPath) {
+    $configText = Get-Content $ConfigPath -Raw
+    if ($configText -match '(?m)^device\s*=\s*(\d+)\s*$') {
+        $Device = [int]$Matches[1]
+    }
+    if ($configText -match '(?m)^port\s*=\s*(\d+)\s*$') {
+        $Port = [int]$Matches[1]
+    }
+}
 
 if (-not (Test-Path $ServerPy)) {
     Write-Error "udp_audio_server.py nao encontrado em: $Dir"

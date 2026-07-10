@@ -10,18 +10,17 @@ $zip = Join-Path $root "build\Moonlight-qt-mlmc-host-receiver-$Version-win.zip"
 
 $coreFiles = @(
     "udp_audio_server.py",
-    "requirements-udp-audio.txt",
-    "udp_audio_start.bat",
-    "udp_audio_start.vbs"
+    "requirements-udp-audio.txt"
 )
 
-$helperFiles = @(
-    "install-deps.bat",
-    "list-devices.bat",
-    "install-autostart.bat",
+$userFiles = @(
+    "INSTALAR.bat",
+    "INICIAR.bat",
+    "REMOVER-AUTOSTART.bat",
+    "LEIA-ME.md",
+    "setup.ps1",
     "install-autostart.ps1",
-    "uninstall-autostart.bat",
-    "README.md"
+    "config.ini.example"
 )
 
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
@@ -31,7 +30,7 @@ foreach ($name in $coreFiles) {
     Copy-Item (Join-Path $PSScriptRoot $name) (Join-Path $staging $name)
 }
 
-foreach ($name in $helperFiles) {
+foreach ($name in $userFiles) {
     Copy-Item (Join-Path $PSScriptRoot "host-receiver\$name") (Join-Path $staging $name)
 }
 
