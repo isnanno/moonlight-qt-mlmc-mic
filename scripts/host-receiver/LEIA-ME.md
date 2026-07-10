@@ -55,7 +55,7 @@ Libere **entrada UDP na porta 9000** nesta máquina (VM/host).
 
 | Sintoma | O que verificar |
 |---------|-----------------|
-| Não inicia no boot | `autostart_boot.log` + Agendador de Tarefas → tarefa **Moonlight MLMC UDP Audio** |
+| Não inicia no boot | `udp_audio_server.log` + Agendador de Tarefas → **Moonlight MLMC UDP Audio** |
 | Não recebe áudio | `udp_audio_server.log` + firewall UDP 9000 |
 | Áudio no dispositivo errado | Rode `INSTALAR.bat` de novo e escolha outro índice |
 | Python não encontrado | Reinstale Python marcando **Add to PATH** |
@@ -65,5 +65,4 @@ Libere **entrada UDP na porta 9000** nesta máquina (VM/host).
 ## Logs
 
 - `udp_audio_server.log` — servidor de áudio
-- `autostart_boot.log` — inicialização com o Windows (tarefa agendada)
 - `config.ini` — dispositivo de saída escolhido (gerado pelo instalador)

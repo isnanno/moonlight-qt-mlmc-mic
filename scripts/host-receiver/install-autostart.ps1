@@ -1,5 +1,4 @@
-# Autostart confiavel via Agendador de Tarefas (logon + 10s).
-# A pasta Inicializar NAO executa .vbs no boot — so no duplo clique manual.
+# Autostart via Agendador de Tarefas — pythonw direto, sem janela de console.
 $ErrorActionPreference = 'Stop'
 
 $TaskName = 'Moonlight MLMC UDP Audio'
@@ -10,12 +9,11 @@ $Dir = if ($PSScriptRoot -match 'host-receiver$') {
 }
 
 $ServerPy = Join-Path $Dir 'udp_audio_server.py'
-$LauncherBat = Join-Path $Dir 'udp_audio_autostart.bat'
-$BootLog = Join-Path $Dir 'autostart_boot.log'
 $ServerLog = Join-Path $Dir 'udp_audio_server.log'
 $ConfigPath = Join-Path $Dir 'config.ini'
 $OldShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\Moonlight MLMC UDP Audio.lnk'
 $OldVbs = Join-Path $Dir 'udp_audio_autostart.vbs'
+$OldBat = Join-Path $Dir 'udp_audio_autostart.bat'
 $Device = 16
 $Port = 9000
 
@@ -42,21 +40,11 @@ if (-not (Test-Path $pythonw)) {
     throw "pythonw.exe nao encontrado. Rode INSTALAR.bat primeiro."
 }
 
-$bat = @"
-@echo off
-setlocal EnableExtensions
-cd /d "%~dp0"
-echo [%date% %time%] Autostart via tarefa agendada>> "$BootLog"
-"$pythonw" "$ServerPy" --host 0.0.0.0 --port $Port --device $Device --priming-ms 50 --log-file "$ServerLog"
-echo [%date% %time%] Servidor encerrou (codigo %ERRORLEVEL%)>> "$BootLog"
-exit /b %ERRORLEVEL%
-"@
-
-Set-Content -Path $LauncherBat -Value $bat -Encoding ASCII
+$arguments = "`"$ServerPy`" --host 0.0.0.0 --port $Port --device $Device --priming-ms 50 --log-file `"$ServerLog`""
 
 Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false
 
-$action = New-ScheduledTaskAction -Execute $LauncherBat -WorkingDirectory $Dir
+$action = New-ScheduledTaskAction -Execute $pythonw -Argument $arguments -WorkingDirectory $Dir
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $trigger.Delay = 'PT10S'
 $settings = New-ScheduledTaskSettingsSet `
@@ -73,19 +61,15 @@ Register-ScheduledTask `
     -Settings $settings `
     -Description 'Receptor microfone Moonlight MLMC (UDP 9000)' | Out-Null
 
-if (Test-Path $OldShortcut) {
-    Remove-Item $OldShortcut -Force
-}
-if (Test-Path $OldVbs) {
-    Remove-Item $OldVbs -Force
+foreach ($old in @($OldShortcut, $OldVbs, $OldBat)) {
+    if (Test-Path $old) { Remove-Item $old -Force }
 }
 
 Write-Host ""
-Write-Host "Autostart configurado (Agendador de Tarefas)."
-Write-Host "  Tarefa : $TaskName"
-Write-Host "  Quando : ao fazer login (+ 10 segundos)"
-Write-Host "  Launcher: $LauncherBat"
+Write-Host "Autostart configurado (sem janela visivel)."
+Write-Host "  Tarefa  : $TaskName"
+Write-Host "  Quando  : ao fazer login (+ 10 segundos)"
 Write-Host "  Pythonw : $pythonw"
+Write-Host "  Log     : $ServerLog"
 Write-Host ""
 Write-Host "Reinicie o PC ou faca logout/login para testar."
-Write-Host "Log de boot: $BootLog"
