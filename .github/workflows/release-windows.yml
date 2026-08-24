@@ -1,0 +1,70 @@
+name: Release Windows Portable
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.7.3
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.3'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          dir: 'C:\Qt\6.7.3'
+          install-deps: 'true'
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Fetch dependencies
+        shell: pwsh
+        run: ./scripts/fetch-deps.ps1
+
+      - name: Build release portable
+        shell: cmd
+        run: |
+          set PATH=C:\Qt\6.7.3\msvc2019_64\bin;%PATH%
+          call scripts\build-release-local.bat
+
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { 'v6.1.0-mlmc.2' }
+          $zip = "build/Moonlight-qt-mlmc-$tag-win64-portable.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path build/deploy-x64-release/* -DestinationPath $zip -CompressionLevel Optimal
+          Write-Host "Created $zip"
+
+      - name: Package host receiver
+        shell: pwsh
+        run: |
+          $tag = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { 'v6.1.0-mlmc.2' }
+          ./scripts/package-host-receiver.ps1 -Version $tag
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            build/Moonlight-qt-mlmc-*-win64-portable.zip
+            build/Moonlight-qt-mlmc-host-receiver-*-win.zip
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonlight-qt-mlmc-windows
+          path: |
+            build/Moonlight-qt-mlmc-*-win64-portable.zip
+            build/Moonlight-qt-mlmc-host-receiver-*-win.zip

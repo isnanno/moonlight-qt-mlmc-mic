@@ -1,7 +1,11 @@
 @echo off
 setlocal enableDelayedExpansion
 
-call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+set SOURCE_ROOT=%~dp0..
+set VSWHERE="%SOURCE_ROOT%\scripts\vswhere.exe"
+for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+    call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
+)
 if errorlevel 1 (
     echo Failed to initialize MSVC environment
     exit /b 1

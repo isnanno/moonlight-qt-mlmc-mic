@@ -32,6 +32,11 @@ if not exist "%BUILD_FOLDER%\app\%BUILD_CONFIG%\Moonlight.exe" (
 
 call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
 if errorlevel 1 (
+    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+        call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
+    )
+)
+if errorlevel 1 (
     echo Failed to initialize MSVC environment.
     exit /b 1
 )
