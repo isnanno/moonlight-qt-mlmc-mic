@@ -44,7 +44,7 @@ jobs:
       - name: Package portable zip
         shell: pwsh
         run: |
-          $tag = 'v6.1.0-mlmc.2'
+          $tag = 'v6.1.0-mlmc.3'
           if ($env:GITHUB_REF -like 'refs/tags/*') { $tag = $env:GITHUB_REF_NAME }
           $zip = "build/Moonlight-qt-mlmc-$tag-win64-portable.zip"
           if (Test-Path $zip) { Remove-Item $zip -Force }
@@ -54,7 +54,7 @@ jobs:
       - name: Package host receiver
         shell: pwsh
         run: |
-          $tag = 'v6.1.0-mlmc.2'
+          $tag = 'v6.1.0-mlmc.3'
           if ($env:GITHUB_REF -like 'refs/tags/*') { $tag = $env:GITHUB_REF_NAME }
           ./scripts/package-host-receiver.ps1 -Version $tag
 
@@ -66,12 +66,12 @@ jobs:
             build/Moonlight-qt-mlmc-*-win64-portable.zip
             build/Moonlight-qt-mlmc-host-receiver-*-win.zip
 
-      - name: Upload assets to v6.1.0-mlmc.2 release
+      - name: Upload assets to v6.1.0-mlmc.3 release
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           Get-ChildItem build -Filter 'Moonlight-qt-mlmc-*.zip' | ForEach-Object { Write-Host $_.FullName }
-          gh release upload v6.1.0-mlmc.2 (Get-ChildItem build -Filter 'Moonlight-qt-mlmc-*.zip' | ForEach-Object { $_.FullName }) --repo isnanno/moonlight-qt-mlmc-mic --clobber
+          gh release upload v6.1.0-mlmc.3 (Get-ChildItem build -Filter 'Moonlight-qt-mlmc-*.zip' | ForEach-Object { $_.FullName }) --repo isnanno/moonlight-qt-mlmc-mic --clobber
         env:
           GH_TOKEN: ${{ github.token }}
 

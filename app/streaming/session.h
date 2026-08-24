@@ -125,6 +125,16 @@ public:
         return m_OverlayManager;
     }
 
+    // Snapshot for Settings / Ctrl+Alt+Shift+N network test while streaming.
+    static
+    bool fillLiveNetworkMetrics(uint32_t& rttMs,
+                                uint32_t& rttVarianceMs,
+                                float& networkLossPct,
+                                float& jitterPct,
+                                QString& hostName,
+                                bool& isVpn,
+                                QString& reachabilityLabel);
+
     void flushWindowEvents();
 
     int terminationErrorCode() const

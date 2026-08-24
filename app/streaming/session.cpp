@@ -2,11 +2,13 @@
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
 #include "backend/richpresencemanager.h"
+#include "backend/nvcomputer.h"
 #include "streaming/audio/microphonepassthrough.h"
 
 #include <Limelight.h>
 #include <SDL.h>
 #include "utils.h"
+#include <QReadLocker>
 
 #ifdef HAVE_FFMPEG
 #include "video/ffmpeg.h"
@@ -85,6 +87,75 @@ enum class ConnectionIssue {
     HighLatency,
     Degraded
 };
+
+bool Session::fillLiveNetworkMetrics(uint32_t& rttMs,
+                                     uint32_t& rttVarianceMs,
+                                     float& networkLossPct,
+                                     float& jitterPct,
+                                     QString& hostName,
+                                     bool& isVpn,
+                                     QString& reachabilityLabel)
+{
+    Session* session = s_ActiveSession;
+    if (session == nullptr) {
+        return false;
+    }
+
+    rttMs = 0;
+    rttVarianceMs = 0;
+    networkLossPct = -1.0f;
+    jitterPct = -1.0f;
+    isVpn = false;
+    hostName = Session::tr("Active stream");
+    reachabilityLabel = Session::tr("Live stream");
+
+    if (session->m_Computer != nullptr) {
+        QReadLocker locker(&session->m_Computer->lock);
+        hostName = session->m_Computer->name;
+        locker.unlock();
+
+        switch (session->m_Computer->getActiveAddressReachability()) {
+        case NvComputer::RI_LAN:
+            reachabilityLabel = Session::tr("LAN");
+            break;
+        case NvComputer::RI_VPN:
+            reachabilityLabel = Session::tr("VPN / tunnel");
+            isVpn = true;
+            break;
+        default:
+            reachabilityLabel = Session::tr("Unknown path");
+            break;
+        }
+    }
+
+    VIDEO_STATS stats = {};
+    bool hasStats = false;
+    if (session->m_VideoDecoder != nullptr) {
+        hasStats = session->m_VideoDecoder->getRecentVideoStats(stats);
+    }
+
+    uint32_t rtt = 0;
+    uint32_t variance = 0;
+    if (LiGetEstimatedRttInfo(&rtt, &variance)) {
+        rttMs = rtt;
+        rttVarianceMs = variance;
+        stats.lastRtt = rtt;
+        stats.lastRttVariance = variance;
+    }
+
+    if (hasStats && stats.totalFrames >= 30) {
+        networkLossPct = (float)stats.networkDroppedFrames / stats.totalFrames * 100.0f;
+        if (stats.decodedFrames > 0) {
+            jitterPct = (float)stats.pacerDroppedFrames / stats.decodedFrames * 100.0f;
+        }
+        if (stats.lastRtt > 0) {
+            rttMs = stats.lastRtt;
+            rttVarianceMs = stats.lastRttVariance;
+        }
+    }
+
+    return rttMs > 0 || hasStats;
+}
 
 QString Session::buildConnectionQualityWarning(Session* session, bool forDialog)
 {

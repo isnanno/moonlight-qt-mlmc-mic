@@ -5,7 +5,7 @@ set SOURCE_ROOT=%~dp0..
 set VSWHERE="%SOURCE_ROOT%\scripts\vswhere.exe"
 where cl >nul 2>&1
 if errorlevel 1 (
-    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
         call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
     )
     if errorlevel 1 (

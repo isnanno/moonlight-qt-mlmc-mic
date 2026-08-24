@@ -1,4 +1,5 @@
 #include "streaming/session.h"
+#include "backend/networktester.h"
 
 #include <Limelight.h>
 #include <SDL.h>
@@ -137,6 +138,12 @@ void SdlInputHandler::performSpecialKeyCombo(KeyCombo combo)
 
         // Apply the new region lock
         updatePointerRegionLock();
+        break;
+
+    case KeyComboNetworkTest:
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Detected network test combo");
+        NetworkTester::get()->analyzeActiveStreamAndShowOverlay();
         break;
 
     default:

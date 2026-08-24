@@ -34,7 +34,7 @@ where cl >nul 2>&1
 if errorlevel 1 (
     call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
     if errorlevel 1 (
-        for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+        for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
             call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
         )
     )

@@ -1,4 +1,4 @@
-QT += core quick network quickcontrols2 svg
+QT += core quick network quickcontrols2 svg concurrent
 CONFIG += c++11
 
 unix:!macx {
@@ -181,6 +181,7 @@ SOURCES += \
     backend/computermanager.cpp \
     backend/boxartmanager.cpp \
     backend/richpresencemanager.cpp \
+    backend/networktester.cpp \
     cli/commandlineparser.cpp \
     cli/listapps.cpp \
     cli/quitstream.cpp \
@@ -224,6 +225,7 @@ HEADERS += \
     backend/computermanager.h \
     backend/boxartmanager.h \
     backend/richpresencemanager.h \
+    backend/networktester.h \
     cli/commandlineparser.h \
     cli/listapps.h \
     cli/quitstream.h \

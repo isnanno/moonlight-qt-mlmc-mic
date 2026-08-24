@@ -5,6 +5,7 @@ import QtQuick.Window 2.2
 
 import StreamingPreferences 1.0
 import ComputerManager 1.0
+import NetworkTester 1.0
 import SdlGamepadKeyNavigation 1.0
 import SystemProperties 1.0
 
@@ -819,6 +820,166 @@ Flickable {
                     ToolTip.timeout: 5000
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Frame pacing reduces micro-stutter by delaying frames that come in too early")
+                }
+            }
+        }
+
+        GroupBox {
+            id: networkTestGroupBox
+            width: (parent.width - (parent.leftPadding + parent.rightPadding))
+            padding: 12
+            title: "<font color=\"skyblue\">" + qsTr("Network Test") + "</font>"
+            font.pointSize: 12
+
+            Column {
+                anchors.fill: parent
+                spacing: 8
+
+                Label {
+                    width: parent.width
+                    text: qsTr("Test the path to a paired Moonlight host and get recommended stream settings. During a stream, press Ctrl+Alt+Shift+N for a live test with packet loss.")
+                    font.pointSize: 9
+                    wrapMode: Text.Wrap
+                }
+
+                AutoResizingComboBox {
+                    id: networkHostComboBox
+                    width: parent.width
+                    model: NetworkTester.hostNames
+                    enabled: !NetworkTester.busy && NetworkTester.hostNames.length > 0
+                    Component.onCompleted: {
+                        NetworkTester.refreshHosts(ComputerManager)
+                        if (NetworkTester.selectedHostIndex >= 0 &&
+                                NetworkTester.selectedHostIndex < NetworkTester.hostNames.length) {
+                            currentIndex = NetworkTester.selectedHostIndex
+                        }
+                    }
+                    onActivated: {
+                        NetworkTester.selectedHostIndex = currentIndex
+                    }
+
+                    Connections {
+                        target: NetworkTester
+                        function onHostsChanged() {
+                            networkHostComboBox.model = NetworkTester.hostNames
+                            if (NetworkTester.selectedHostIndex >= 0 &&
+                                    NetworkTester.selectedHostIndex < NetworkTester.hostNames.length) {
+                                networkHostComboBox.currentIndex = NetworkTester.selectedHostIndex
+                            }
+                        }
+                    }
+                }
+
+                Row {
+                    spacing: 10
+                    width: parent.width
+
+                    Button {
+                        text: NetworkTester.busy ? qsTr("Testing…") : qsTr("Run network test")
+                        enabled: !NetworkTester.busy && NetworkTester.hostNames.length > 0
+                        onClicked: {
+                            NetworkTester.refreshHosts(ComputerManager)
+                            networkHostComboBox.currentIndex = NetworkTester.selectedHostIndex
+                            NetworkTester.startHostTest(ComputerManager)
+                        }
+                    }
+
+                    Button {
+                        text: qsTr("Refresh hosts")
+                        enabled: !NetworkTester.busy
+                        onClicked: {
+                            NetworkTester.refreshHosts(ComputerManager)
+                            if (NetworkTester.selectedHostIndex >= 0) {
+                                networkHostComboBox.currentIndex = NetworkTester.selectedHostIndex
+                            }
+                        }
+                    }
+                }
+
+                Label {
+                    width: parent.width
+                    visible: NetworkTester.hasResult
+                    text: qsTr("Quality: %1").arg(NetworkTester.qualityLabel)
+                    font.pointSize: 12
+                    font.bold: true
+                    wrapMode: Text.Wrap
+                    color: {
+                        switch (NetworkTester.qualityTier) {
+                        case 0: return "lightgreen"   // Excellent
+                        case 1: return "palegreen"    // Good
+                        case 2: return "orange"       // Fair
+                        default: return "tomato"      // Poor
+                        }
+                    }
+                }
+
+                Label {
+                    width: parent.width
+                    visible: NetworkTester.hasResult
+                    text: NetworkTester.summaryText
+                    font.pointSize: 9
+                    wrapMode: Text.Wrap
+                }
+
+                Label {
+                    width: parent.width
+                    visible: NetworkTester.hasResult
+                    text: qsTr("Recommended settings")
+                    font.pointSize: 12
+                    wrapMode: Text.Wrap
+                }
+
+                Label {
+                    width: parent.width
+                    visible: NetworkTester.hasResult
+                    text: NetworkTester.recommendationText
+                    font.pointSize: 9
+                    wrapMode: Text.Wrap
+                }
+
+                Button {
+                    text: qsTr("Apply recommended settings")
+                    visible: NetworkTester.hasResult
+                    enabled: NetworkTester.hasResult && !NetworkTester.busy
+                    onClicked: {
+                        if (!NetworkTester.applyRecommendations()) {
+                            return
+                        }
+
+                        // Sync Basic Settings controls with the applied values
+                        slider.value = StreamingPreferences.bitrateKbps
+
+                        for (var i = 0; i < resolutionListModel.count; i++) {
+                            var w = parseInt(resolutionListModel.get(i).video_width)
+                            var h = parseInt(resolutionListModel.get(i).video_height)
+                            if (w === StreamingPreferences.width && h === StreamingPreferences.height) {
+                                resolutionComboBox.currentIndex = i
+                                break
+                            }
+                        }
+
+                        for (var j = 0; j < fpsListModel.count; j++) {
+                            if (parseInt(fpsListModel.get(j).video_fps) === StreamingPreferences.fps) {
+                                fpsComboBox.currentIndex = j
+                                break
+                            }
+                        }
+
+                        for (var k = 0; k < codecListModel.count; k++) {
+                            if (codecListModel.get(k).val === StreamingPreferences.videoCodecConfig) {
+                                codecComboBox.currentIndex = k
+                                break
+                            }
+                        }
+                    }
+                }
+
+                Connections {
+                    target: NetworkTester
+                    function onTestFailed(error) {
+                        networkTestErrorDialog.text = error
+                        networkTestErrorDialog.open()
+                    }
                 }
             }
         }
@@ -1735,5 +1896,11 @@ Flickable {
                 }
             }
         }
+    }
+
+    ErrorMessageDialog {
+        id: networkTestErrorDialog
+        // No help URL — this is a local connectivity diagnostic
+        standardButtons: Dialog.Ok
     }
 }
