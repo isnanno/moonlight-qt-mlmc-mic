@@ -2,6 +2,7 @@
 
 #include <QSemaphore>
 #include <QWindow>
+#include <QString>
 
 #include <Limelight.h>
 #include <opus_multistream.h>
@@ -93,6 +94,8 @@ class Session : public QObject
 {
     Q_OBJECT
 
+    Q_PROPERTY(int terminationErrorCode READ terminationErrorCode NOTIFY terminationErrorCodeChanged)
+
     friend class SdlInputHandler;
     friend class DeferredSessionCleanupTask;
     friend class AsyncConnectionStartThread;
@@ -124,6 +127,11 @@ public:
 
     void flushWindowEvents();
 
+    int terminationErrorCode() const
+    {
+        return m_TerminationErrorCode;
+    }
+
 signals:
     void stageStarting(QString stage);
 
@@ -138,6 +146,8 @@ signals:
     void quitStarting();
 
     void sessionFinished(int portTestResult);
+
+    void terminationErrorCodeChanged();
 
     // Emitted after sessionFinished() when the session is ready to be destroyed
     void readyForDeletion();
@@ -209,6 +219,9 @@ private:
     void clConnectionStatusUpdate(int connectionStatus);
 
     static
+    QString buildConnectionQualityWarning(Session* session, bool forDialog);
+
+    static
     void clSetHdrMode(bool enabled);
 
     static
@@ -263,6 +276,7 @@ private:
 
     bool m_AsyncConnectionSuccess;
     int m_PortTestResults;
+    int m_TerminationErrorCode;
 
     int m_ActiveVideoFormat;
     int m_ActiveVideoWidth;

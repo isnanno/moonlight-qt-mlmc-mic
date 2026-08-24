@@ -75,6 +75,148 @@ CONNECTION_LISTENER_CALLBACKS Session::k_ConnCallbacks = {
 Session* Session::s_ActiveSession;
 QSemaphore Session::s_ActiveSessionSemaphore(1);
 
+enum class ConnectionIssue {
+    None,
+    HostOverloaded,
+    NetworkLoss,
+    NetworkJitter,
+    ClientOverloaded,
+    UnstableLatency,
+    HighLatency,
+    Degraded
+};
+
+QString Session::buildConnectionQualityWarning(Session* session, bool forDialog)
+{
+    if (session == nullptr) {
+        return Session::tr("Connection quality degraded (frame loss detected)");
+    }
+
+    VIDEO_STATS stats = {};
+    bool hasStats = false;
+
+    if (session->m_VideoDecoder != nullptr) {
+        hasStats = session->m_VideoDecoder->getRecentVideoStats(stats);
+    }
+
+    uint32_t rtt = 0;
+    uint32_t rttVariance = 0;
+    if (LiGetEstimatedRttInfo(&rtt, &rttVariance)) {
+        stats.lastRtt = rtt;
+        stats.lastRttVariance = rttVariance;
+    }
+
+    const bool hasSample = hasStats && stats.totalFrames >= 30;
+    float networkLossPct = 0.0f;
+    float jitterPct = 0.0f;
+    float avgHostLatencyMs = 0.0f;
+    float avgDecodeMs = 0.0f;
+
+    if (hasSample) {
+        networkLossPct = (float)stats.networkDroppedFrames / stats.totalFrames * 100.0f;
+        if (stats.decodedFrames > 0) {
+            jitterPct = (float)stats.pacerDroppedFrames / stats.decodedFrames * 100.0f;
+        }
+        if (stats.framesWithHostProcessingLatency > 0) {
+            avgHostLatencyMs = (float)stats.totalHostProcessingLatency / stats.framesWithHostProcessingLatency / 10.0f;
+        }
+        if (stats.decodedFrames > 0) {
+            avgDecodeMs = (float)stats.totalDecodeTime / stats.decodedFrames;
+        }
+    }
+
+    ConnectionIssue primaryIssue = ConnectionIssue::Degraded;
+    if (hasSample && avgHostLatencyMs > 20.0f) {
+        primaryIssue = ConnectionIssue::HostOverloaded;
+    }
+    else if (hasSample && networkLossPct > 3.0f) {
+        primaryIssue = ConnectionIssue::NetworkLoss;
+    }
+    else if (hasSample && jitterPct > 3.0f) {
+        primaryIssue = ConnectionIssue::NetworkJitter;
+    }
+    else if (hasSample && (avgDecodeMs > 15.0f ||
+                           (stats.receivedFps > 0 && stats.renderedFps < stats.receivedFps * 0.85f))) {
+        primaryIssue = ConnectionIssue::ClientOverloaded;
+    }
+    else if (stats.lastRttVariance > 30) {
+        primaryIssue = ConnectionIssue::UnstableLatency;
+    }
+    else if (stats.lastRtt > 80) {
+        primaryIssue = ConnectionIssue::HighLatency;
+    }
+
+    QString headline;
+    switch (primaryIssue) {
+    case ConnectionIssue::HostOverloaded:
+        headline = Session::tr("Host overloaded: encoding latency %1 ms")
+                       .arg(QString::number(avgHostLatencyMs, 'f', 1));
+        break;
+    case ConnectionIssue::NetworkLoss:
+        headline = Session::tr("Network packet/frame loss: %1%")
+                       .arg(QString::number(networkLossPct, 'f', 1));
+        break;
+    case ConnectionIssue::NetworkJitter:
+        headline = Session::tr("Network jitter: %1% frames dropped")
+                       .arg(QString::number(jitterPct, 'f', 1));
+        break;
+    case ConnectionIssue::ClientOverloaded:
+        if (avgDecodeMs > 15.0f) {
+            headline = Session::tr("Client overloaded: decode time %1 ms")
+                           .arg(QString::number(avgDecodeMs, 'f', 1));
+        }
+        else {
+            headline = Session::tr("Client cannot keep up with incoming frames");
+        }
+        break;
+    case ConnectionIssue::UnstableLatency:
+        headline = Session::tr("Unstable network latency (variance: %1 ms)")
+                       .arg(stats.lastRttVariance);
+        break;
+    case ConnectionIssue::HighLatency:
+        headline = Session::tr("High network latency: %1 ms").arg(stats.lastRtt);
+        break;
+    default:
+        headline = Session::tr("Connection quality degraded (frame loss detected)");
+        break;
+    }
+
+    QString message = headline;
+
+    if (stats.lastRtt > 0) {
+        message += "\n" + Session::tr("Latency: %1 ms (variance: %2 ms)")
+                              .arg(stats.lastRtt)
+                              .arg(stats.lastRttVariance);
+    }
+
+    if (primaryIssue == ConnectionIssue::NetworkLoss ||
+        primaryIssue == ConnectionIssue::NetworkJitter ||
+        primaryIssue == ConnectionIssue::UnstableLatency ||
+        primaryIssue == ConnectionIssue::HighLatency) {
+        message += "\n" + Session::tr("May be the route between client and host, not necessarily your internet");
+    }
+    else if (primaryIssue == ConnectionIssue::HostOverloaded) {
+        message += "\n" + Session::tr("The host PC may be CPU/GPU limited, not your connection");
+    }
+    else if (primaryIssue == ConnectionIssue::ClientOverloaded) {
+        message += "\n" + Session::tr("Try lowering resolution, FPS, or using hardware decoding");
+    }
+
+    const bool suggestBitrate = session->m_StreamConfig.bitrate > 5000 &&
+                                (primaryIssue == ConnectionIssue::NetworkLoss ||
+                                 primaryIssue == ConnectionIssue::NetworkJitter ||
+                                 primaryIssue == ConnectionIssue::UnstableLatency);
+    if (suggestBitrate) {
+        message += "\n" + Session::tr("You may also try reducing your video bitrate");
+    }
+
+    if (forDialog) {
+        return Session::tr("Stream stopped: no video frames received.") + "\n\n" + message;
+    }
+
+    return message;
+}
+
 void Session::clStageStarting(int stage)
 {
     // We know this is called on the same thread as LiStartConnection()
@@ -98,6 +240,12 @@ void Session::clConnectionTerminated(int errorCode)
 {
     unsigned int portFlags = LiGetPortFlagsFromTerminationErrorCode(errorCode);
     s_ActiveSession->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
+    s_ActiveSession->m_TerminationErrorCode = errorCode;
+    emit s_ActiveSession->terminationErrorCodeChanged();
+
+    const bool suppressErrorDialog =
+            errorCode == -1 &&
+            s_ActiveSession->m_Preferences->autoReconnectOnError;
 
     // Display the termination dialog if this was not intended
     switch (errorCode) {
@@ -116,7 +264,7 @@ void Session::clConnectionTerminated(int errorCode)
 
     case ML_ERROR_NO_VIDEO_FRAME:
         s_ActiveSession->m_UnexpectedTermination = true;
-        emit s_ActiveSession->displayLaunchError(tr("Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection."));
+        emit s_ActiveSession->displayLaunchError(buildConnectionQualityWarning(s_ActiveSession, true));
         break;
 
     case ML_ERROR_PROTECTED_CONTENT:
@@ -135,10 +283,17 @@ void Session::clConnectionTerminated(int errorCode)
     default:
         s_ActiveSession->m_UnexpectedTermination = true;
 
-        // We'll assume large errors are hex values
-        bool hexError = qAbs(errorCode) > 1000;
-        emit s_ActiveSession->displayLaunchError(tr("Connection terminated") + "\n\n" +
-                                                 tr("Error code: %1").arg(errorCode, hexError ? 8 : 0, hexError ? 16 : 10, QChar('0')));
+        if (!suppressErrorDialog) {
+            // We'll assume large errors are hex values
+            bool hexError = qAbs(errorCode) > 1000;
+            emit s_ActiveSession->displayLaunchError(tr("Connection terminated") + "\n\n" +
+                                                     tr("Error code: %1").arg(errorCode, hexError ? 8 : 0, hexError ? 16 : 10, QChar('0')));
+        }
+        else {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Connection terminated with error %d; auto-reconnect is enabled",
+                        errorCode);
+        }
         break;
     }
 
@@ -195,12 +350,14 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
 
     switch (connectionStatus)
     {
-    case CONN_STATUS_POOR:
+    case CONN_STATUS_POOR: {
+        const QByteArray warningText =
+                buildConnectionQualityWarning(s_ActiveSession, false).toUtf8();
         s_ActiveSession->m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate,
-                                                            s_ActiveSession->m_StreamConfig.bitrate > 5000 ?
-                                                                "Slow connection to PC\nReduce your bitrate" : "Poor connection to PC");
+                                                            warningText.constData());
         s_ActiveSession->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
         break;
+    }
     case CONN_STATUS_OKAY:
         s_ActiveSession->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
         break;
@@ -554,6 +711,7 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_FlushingWindowEventsRef(0),
       m_AsyncConnectionSuccess(false),
       m_PortTestResults(0),
+      m_TerminationErrorCode(0),
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),

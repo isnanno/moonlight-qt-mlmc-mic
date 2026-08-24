@@ -75,4 +75,10 @@ public:
     virtual void renderFrameOnMainThread() = 0;
     virtual void setHdrMode(bool enabled) = 0;
     virtual bool notifyWindowChanged(PWINDOW_STATE_CHANGE_INFO info) = 0;
+
+    virtual bool getRecentVideoStats(VIDEO_STATS& stats)
+    {
+        Q_UNUSED(stats)
+        return false;
+    }
 };

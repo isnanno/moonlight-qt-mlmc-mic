@@ -697,6 +697,23 @@ void FFmpegVideoDecoder::addVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst)
     dst.renderedFps = (float)dst.renderedFrames / ((float)(now - dst.measurementStartTimestamp) / 1000);
 }
 
+bool FFmpegVideoDecoder::getRecentVideoStats(VIDEO_STATS& stats)
+{
+    if (m_FramesIn == 0 && m_ActiveWndVideoStats.totalFrames == 0 && m_LastWndVideoStats.totalFrames == 0) {
+        return false;
+    }
+
+    SDL_zero(stats);
+    addVideoStats(m_LastWndVideoStats, stats);
+    addVideoStats(m_ActiveWndVideoStats, stats);
+
+    if (stats.totalFrames == 0 && stats.receivedFrames == 0) {
+        return false;
+    }
+
+    return true;
+}
+
 void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, int length)
 {
     int offset = 0;

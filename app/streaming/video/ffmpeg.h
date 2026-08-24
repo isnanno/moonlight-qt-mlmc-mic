@@ -28,6 +28,8 @@ public:
     virtual void setHdrMode(bool enabled) override;
     virtual bool notifyWindowChanged(PWINDOW_STATE_CHANGE_INFO info) override;
 
+    virtual bool getRecentVideoStats(VIDEO_STATS& stats) override;
+
     virtual IFFmpegRenderer* getBackendRenderer();
 
 private:

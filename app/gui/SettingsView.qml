@@ -1216,6 +1216,22 @@ Flickable {
                 }
 
                 CheckBox {
+                    id: autoReconnectOnErrorCheck
+                    width: parent.width
+                    text: qsTr("Reconnect automatically when stream drops (error -1)")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.autoReconnectOnError
+                    onCheckedChanged: {
+                        StreamingPreferences.autoReconnectOnError = checked
+                    }
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 8000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Waits 1 second and reconnects to the same app and host when the stream ends unexpectedly with error -1. Does not apply to manual disconnects or connection setup failures.")
+                }
+
+                CheckBox {
                     visible: SystemProperties.hasDiscordIntegration
                     id: discordPresenceCheck
                     width: parent.width

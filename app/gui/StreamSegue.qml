@@ -4,14 +4,79 @@ import QtQuick.Window 2.2
 
 import SdlGamepadKeyNavigation 1.0
 import Session 1.0
+import StreamingPreferences 1.0
 
 Item {
     property Session session
+    property var appModel
+    property int appIndex: -1
     property string appName
     property string stageText : isResume ? qsTr("Resuming %1...").arg(appName) :
                                            qsTr("Starting %1...").arg(appName)
     property bool isResume : false
     property bool quitAfter : false
+    property bool pendingReconnect: false
+    property bool sessionCleanupDone: false
+
+    function bindSession(newSession)
+    {
+        newSession.stageStarting.connect(stageStarting)
+        newSession.stageFailed.connect(stageFailed)
+        newSession.connectionStarted.connect(connectionStarted)
+        newSession.displayLaunchError.connect(displayLaunchError)
+        newSession.displayLaunchWarning.connect(displayLaunchWarning)
+        newSession.quitStarting.connect(quitStarting)
+        newSession.sessionFinished.connect(sessionFinished)
+        newSession.readyForDeletion.connect(sessionReadyForDeletion)
+    }
+
+    function startStream()
+    {
+        hintText.text = qsTr("Tip:") + " " + qsTr("Press %1 to disconnect your session").arg(SdlGamepadKeyNavigation.getConnectedGamepads() > 0 ?
+                                              qsTr("Start+Select+L1+R1") : qsTr("Ctrl+Alt+Shift+Q"))
+
+        SdlGamepadKeyNavigation.disable()
+        gc()
+        session.exec(Window.window)
+    }
+
+    function tryReconnectAfterDelay()
+    {
+        if (!pendingReconnect || !sessionCleanupDone || reconnectTimer.running) {
+            return
+        }
+
+        doReconnect()
+    }
+
+    function shouldAutoReconnect()
+    {
+        return StreamingPreferences.autoReconnectOnError &&
+               session !== null &&
+               session.terminationErrorCode === -1 &&
+               !quitAfter &&
+               appModel !== null &&
+               appIndex >= 0
+    }
+
+    function doReconnect()
+    {
+        pendingReconnect = false
+        sessionCleanupDone = false
+        streamSegueErrorDialog.text = ""
+
+        stageText = isResume ? qsTr("Resuming %1...").arg(appName) :
+                               qsTr("Starting %1...").arg(appName)
+        stageSpinner.visible = true
+        stageLabel.visible = true
+        stageSpinner.running = true
+        hintText.visible = true
+        window.visible = false
+
+        session = appModel.createSessionForApp(appIndex)
+        bindSession(session)
+        startStream()
+    }
 
     function stageStarting(stage)
     {
@@ -72,6 +137,18 @@ Item {
 
     function sessionFinished(portTestResult)
     {
+        if (shouldAutoReconnect()) {
+            pendingReconnect = true
+            sessionCleanupDone = false
+            streamSegueErrorDialog.text = ""
+            stageText = qsTr("Connection lost. Reconnecting in 1 second...")
+            stageSpinner.visible = true
+            stageLabel.visible = true
+            stageSpinner.running = true
+            reconnectTimer.start()
+            return
+        }
+
         if (portTestResult !== 0 && portTestResult !== -1 && streamSegueErrorDialog.text) {
             streamSegueErrorDialog.text += "\n\n" + qsTr("This PC's Internet connection is blocking Moonlight. Streaming over the Internet may not work while connected to this network.")
         }
@@ -113,6 +190,8 @@ Item {
         // and keeps other libraries (like SDL_TTF) around until it is deleted.
         session = null
         gc()
+        sessionCleanupDone = true
+        tryReconnectAfterDelay()
     }
 
     StackView.onDeactivating: {
@@ -127,19 +206,17 @@ Item {
         // Hide the toolbar before we start loading
         toolBar.visible = false
 
-        // Hook up our signals
-        session.stageStarting.connect(stageStarting)
-        session.stageFailed.connect(stageFailed)
-        session.connectionStarted.connect(connectionStarted)
-        session.displayLaunchError.connect(displayLaunchError)
-        session.displayLaunchWarning.connect(displayLaunchWarning)
-        session.quitStarting.connect(quitStarting)
-        session.sessionFinished.connect(sessionFinished)
-        session.readyForDeletion.connect(sessionReadyForDeletion)
+        bindSession(session)
 
         // Kick off the stream
         spinnerTimer.start()
         streamLoader.active = true
+    }
+
+    Timer {
+        id: reconnectTimer
+        interval: 1000
+        onTriggered: tryReconnectAfterDelay()
     }
 
     Timer {
@@ -160,23 +237,7 @@ Item {
         asynchronous: true
 
         onLoaded: {
-            // Set the hint text. We do this here rather than
-            // in the hintText control itself to synchronize
-            // with Session.exec() which requires no concurrent
-            // gamepad usage.
-            hintText.text = qsTr("Tip:") + " " + qsTr("Press %1 to disconnect your session").arg(SdlGamepadKeyNavigation.getConnectedGamepads() > 0 ?
-                                                  qsTr("Start+Select+L1+R1") : qsTr("Ctrl+Alt+Shift+Q"))
-
-            // Stop GUI gamepad usage now
-            SdlGamepadKeyNavigation.disable()
-
-            // Garbage collect QML stuff before we start streaming,
-            // since we'll probably be streaming for a while and we
-            // won't be able to GC during the stream.
-            gc()
-
-            // Run the streaming session to completion
-            session.exec(Window.window)
+            startStream()
         }
 
         sourceComponent: Item {}
