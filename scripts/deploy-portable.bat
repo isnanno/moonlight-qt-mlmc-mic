@@ -30,18 +30,26 @@ if not exist "%BUILD_FOLDER%\app\%BUILD_CONFIG%\Moonlight.exe" (
     exit /b 1
 )
 
-call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+where cl >nul 2>&1
 if errorlevel 1 (
-    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
-        call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+    if errorlevel 1 (
+        for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+            call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
+        )
+    )
+    if errorlevel 1 (
+        echo Failed to initialize MSVC environment.
+        exit /b 1
     )
 )
-if errorlevel 1 (
-    echo Failed to initialize MSVC environment.
-    exit /b 1
-)
 
+for /f "delims=" %%P in ('where qmake 2^>nul') do (
+    set "PATH=%%~dpP;%PATH%"
+    goto QtPathDone
+)
 set PATH=C:\Qt\6.7.3\msvc2019_64\bin;%PATH%
+:QtPathDone
 
 echo Cleaning deploy folder...
 if exist "%DEPLOY_FOLDER%" rmdir /s /q "%DEPLOY_FOLDER%"

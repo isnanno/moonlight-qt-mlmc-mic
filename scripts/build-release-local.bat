@@ -3,15 +3,23 @@ setlocal enableDelayedExpansion
 
 set SOURCE_ROOT=%~dp0..
 set VSWHERE="%SOURCE_ROOT%\scripts\vswhere.exe"
-for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
-    call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
-)
+where cl >nul 2>&1
 if errorlevel 1 (
-    echo Failed to initialize MSVC environment
-    exit /b 1
+    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+        call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x64
+    )
+    if errorlevel 1 (
+        echo Failed to initialize MSVC environment
+        exit /b 1
+    )
 )
 
+for /f "delims=" %%P in ('where qmake 2^>nul') do (
+    set "PATH=%%~dpP;%PATH%"
+    goto QtPathDone
+)
 set PATH=C:\Qt\6.7.3\msvc2019_64\bin;%PATH%
+:QtPathDone
 
 cd /d "%~dp0.."
 if exist build rmdir /s /q build

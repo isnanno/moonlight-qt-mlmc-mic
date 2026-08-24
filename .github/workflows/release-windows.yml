@@ -54,12 +54,23 @@ jobs:
           ./scripts/package-host-receiver.ps1 -Version $tag
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             build/Moonlight-qt-mlmc-*-win64-portable.zip
             build/Moonlight-qt-mlmc-host-receiver-*-win.zip
+
+      - name: Upload assets to v6.1.0-mlmc.2 release
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          gh release upload v6.1.0-mlmc.2 `
+            build/Moonlight-qt-mlmc-v6.1.0-mlmc.2-win64-portable.zip `
+            build/Moonlight-qt-mlmc-host-receiver-v6.1.0-mlmc.2-win.zip `
+            --repo isnanno/moonlight-qt-mlmc-mic --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
